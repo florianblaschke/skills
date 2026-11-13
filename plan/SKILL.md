@@ -175,7 +175,8 @@ resolved:
 
 - Data types and schema definitions.
 - Public interface declarations or function stubs with explicit inputs and outputs.
-- Behavioral test skeletons with concrete expected outcomes.
+- Behavioral test skeletons with concrete expected outcomes. Use `write-tests` in planning mode:
+  write stubs only, not executable fixtures, target calls, or real assertions.
 
 Use existing artifact locations where practical. Express module responsibilities, dependencies, and
 contract semantics in those code files, using declarations and adjacent comments as needed. Do not
