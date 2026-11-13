@@ -172,6 +172,23 @@ Inspect tests for meaningful outcomes, direct unit-test calls, descriptive names
 test, and prepare/execute/assert structure as required by `write-tests`. Look for hidden failures:
 weakened assertions, skipped tests, leftover placeholders, and suppressed diagnostics.
 
+Apply the implementation-style rules in `build` to the selected scope:
+
+- Functions should have coherent responsibilities and directly testable decision logic. Identify
+  concrete mixed responsibilities or tangled branches rather than imposing a function-length limit
+  or demanding wrappers for trivial expressions.
+- Prefer guard clauses and early returns over avoidable nesting and `else` after a returning branch.
+  A finding must show the confusing control flow and a focused, behavior-preserving simplification;
+  an `else` or `switch` is not inherently a defect. Preserve cleanup and transaction semantics.
+- Shared domain values and rules that must change together should have one owning definition.
+  Cite the repeated locations and show why they represent the same concept. Check that callers reuse
+  the existing constant, enum, configuration, or predicate instead of copying it.
+- Distinguish a repeated value from a repeated condition: a shared retry limit belongs in one domain
+  constant, while retry eligibility belongs in one predicate reused by the worker and retry endpoint.
+  Check both callers for divergent copies of the policy. Do not recommend centralizing unrelated
+  matching literals, caching mutable conditions, or confusing an eligibility check with atomic retry
+  reservation.
+
 Pay particular attention to:
 
 - Duplicated business rules, validation, transformations, queries, or state-transition logic that

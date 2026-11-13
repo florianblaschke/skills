@@ -218,6 +218,53 @@ verification before declaring completion.
 If a check fails unexpectedly, investigate and fix the implementation. If the failure reveals a
 contract problem, use the approval gate above rather than silently changing the agreement.
 
+### Implementation Style
+
+- **Small, testable units:** keep each function focused on one coherent responsibility. Separate
+  substantial decision logic from I/O or orchestration when that makes it directly testable.
+  Extract a named function when it removes repeated logic or makes a tangled responsibility clear;
+  do not create one-line wrappers or public APIs merely to split up code. No arbitrary line limit.
+- **Flat control flow:** prefer guard clauses and early returns for invalid inputs, missing data,
+  and completed cases, leaving the normal path easy to follow. Avoid nested `if/else` trees and
+  `else` blocks after branches that already return. Use `switch`/pattern matching for genuine
+  variants when clearer. Do not mechanically eliminate every `else` or change cleanup, transaction,
+  error-handling, or evaluation semantics just to flatten the code.
+- **One definition per shared domain value or rule:** centralize repeated status names, sentinel
+  values, defaults, limits, and other values that represent the same concept and must change together.
+  Use an existing domain enum, constant, or configuration owner where available. Keep genuinely
+  shared definitions at the narrowest common module boundary, not in a global constants dumping ground.
+- **Repeated condition versus repeated value:** a constant names a stable value; a predicate names a
+  rule. Centralize a shared retry limit as a constant and the conditions for retry eligibility as a
+  predicate, rather than copying a numeric limit and an `if/else` tree across callers. Do not extract
+  meaningless constants such as `EMPTY_STRING`, couple unrelated matching literals, or cache a
+  condition over mutable data as if it were a constant.
+
+For example, suppose a background worker and a manual retry endpoint must enforce the same contract:
+retry only failed deliveries with transient errors, with at most three completed attempts in total.
+
+```typescript
+// Owned by the delivery module; both callers import the same policy.
+export const MAX_DELIVERY_ATTEMPTS = 3;
+
+type Delivery = {
+  status: "pending" | "failed" | "sent";
+  attempts: number; // Completed attempts, including the first attempt.
+  failureKind: "transient" | "permanent" | null;
+};
+
+export function canRetryDelivery(delivery: Delivery): boolean {
+  if (delivery.status !== "failed") return false;
+  if (delivery.failureKind !== "transient") return false;
+  return delivery.attempts < MAX_DELIVERY_ATTEMPTS;
+}
+```
+
+The constant owns the shared limit; the predicate owns the shared decision. Guard clauses keep the
+rule flat, and direct unit tests can cover sent deliveries, permanent failures, and the attempt limit
+separately. Both callers reuse the predicate instead of maintaining competing copies of the policy.
+This checks eligibility only; it does not claim to atomically reserve a retry under concurrency.
+These fields and limits are illustrative, not permission to invent a retry policy for the project.
+
 ### Mandatory Contract Conformance Check
 
 Before **every commit**, including contract amendment commits, the implementer must:

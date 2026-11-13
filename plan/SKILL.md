@@ -77,8 +77,9 @@ Write a goal proposal of **at most roughly 500 words** covering:
 - Its major existing contracts or constraints, where relevant.
 - What this planning effort should achieve, and what is outside its scope.
 
-Resolve questions about the goal in conversation before writing the proposal. Never put open
-questions or question checklists in the spec.
+Resolve only questions needed to state the goal before writing the proposal. Do not delay it to
+settle module details, interface choices, or every edge case; those belong in the contract-drafting
+loop after goal approval. Never put open questions or question checklists in the spec.
 
 For a feature, distinguish the overall application's purpose from the specific change. The feature
 must support that purpose.
@@ -113,7 +114,8 @@ spec.**
 - Clearly distinguish proposed code from approved code. Never record your own recommendation as user
   approval.
 - Ask focused questions about decisions that affect the contract. Do not turn every naming choice
-  into an interview.
+  into an interview or repeatedly ask broad questions such as “Does that separation match?” without
+  showing the concrete interface the answer would affect.
 - When the user proposes a model, refine it rather than replacing it without explanation. Show the
   alternative and its practical tradeoff.
 - Preserve unrelated content and user edits. If instructions conflict, expose the conflict and wait
@@ -128,13 +130,58 @@ For example, replace “How should completion work?” with:
 Keep the spec current rather than accumulating contradictory drafts. Retain a short decision note
 when the reason for a choice will matter later.
 
+### Draft Early, Then Discuss the Diff
+
+After goal approval, the first contract-design turn must produce a small, reviewable code proposal:
+relevant data types, operation signatures with inputs and outcomes, and behavioral test stubs. Start
+with one meaningful module or operation, not the entire application.
+
+Normally write this draft into the appropriate source and test files during that turn. If a terminal sketch
+is useful first, show actual typed declarations, not only a prose flow; save the draft no later than
+the next contract-design turn. A terminal sketch is a stepping stone, not a permanent substitute for
+filesystem changes. Respect an explicit user request to discuss without editing.
+
+Do not wait for every design decision to be settled. Preserve working code: use separate proposed
+contract files when modifying existing interfaces would overwrite implementation or imply an approved
+breaking change. Mark draft declarations/comments as proposed. Unknown outcomes may be questions on
+the relevant stubs; they are not approved defaults and must be resolved before final approval.
+
+If even a provisional interface cannot be drafted safely, ask the specific blocking question and
+explain what prevents the draft. A missing choice for one operation must not hold up drafting the
+already-understood parts. Do not invent a stack, dependencies, or product behavior to meet the pacing
+rule.
+
+Use this loop rather than a long interview:
+
+```text
+Draft one contract slice in code
+              |
+              v
+Show the types/signatures or file diff
+              |
+              v
+Ask a focused question about a concrete unresolved choice
+              |
+              v
+User answers -> Update the affected declarations and test stubs
+              |
+              v
+Next slice, or final contract review when complete
+```
+
+Each resolved answer should yield an artifact update before another round of design questions for
+that slice. Group closely related choices when useful; do not serialize every field into a separate
+approval turn. Keep explanations and flow diagrams, but pair them with concrete contract changes.
+End each drafting turn by naming the files changed and the exact decision still needed, if any.
+
 ## 3. Define the Contract Together
 
 Agree on the modules needed for the goal. A module is a meaningful responsibility with a boundary,
 not every class or helper function. A small feature may need only one module.
 
-Draft code contracts while discussing each module; do not wait for every design choice to be settled
-before showing a proposal. Treat those drafts as proposed until the user approves them.
+Draft code contracts while discussing each module, following the draft-first loop above. Treat
+those drafts as proposed until the user approves them. Agreement on a flow diagram alone is not a
+concrete module contract.
 
 For each module, define the following at the level required to remove behavioral ambiguity:
 
