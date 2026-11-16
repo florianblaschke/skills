@@ -106,39 +106,14 @@ immediately. In Pi, use `/reload`.
 
 ## Updates
 
-For users who installed globally:
-
-```bash
-npx skills check
-npx skills update --global
-```
-
-The update command above updates all globally installed skills, not only this collection. To limit
-it to this collection:
+To update only the skills from this repository installed globally:
 
 ```bash
 npx skills update --global use-skills plan challenge build write-tests qa educate
 ```
 
 For project installations, use `--project` instead of `--global`. Review local customizations before
-updating. Updates are explicit: pushing to GitHub does not silently replace users' installed files.
-The installer manages its own installed copies; it does not track the local development symlinks
-used by a repository author.
-
-## Publishing and Releases
-
-Maintainers publish changes by committing and pushing the skill directories to this repository.
-Users following the repository can then fetch changes with the update command.
-
-For stable releases, publish a Git tag after reviewing the changes. For example, once `v1.0.0`
-exists, users can install that release with:
-
-```bash
-npx skills add florianblaschke/skills@v1.0.0 --skill '*' --agent claude-code --global
-```
-
-The tag is an example, not a claim that this release exists. Users pinned to a release should
-explicitly select a newer tag when upgrading. No npm publication is necessary.
+updating.
 
 ## License
 
