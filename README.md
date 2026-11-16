@@ -53,9 +53,10 @@ Private repository access uses the credentials already configured for Git. See t
 | [use-skills](use-skills/SKILL.md) | Choose the right skill for the current task. |
 | [plan](plan/SKILL.md) | Agree on the goal and draft concrete module contracts in code with the user. |
 | [challenge](challenge/SKILL.md) | Challenge the design with two independent reviewers and a third reconciler. |
-| [build](build/SKILL.md) | Delegate implementation while enforcing the contract and optional automatic commits. |
+| [build](build/SKILL.md) | Divide implementation into flat, owned tasks; delegate independent work in parallel and optionally commit each verified task. |
 | [write-tests](write-tests/SKILL.md) | Write test stubs during planning and executable, unit-first tests during building. |
-| [qa](qa/SKILL.md) | Review correctness, security, quality, duplication, and performance with two specialists and a proof verifier. |
+| [code-quality](code-quality/SKILL.md) | Shared quality, duplication, testability, and performance criteria for build, QA, or standalone review. |
+| [qa](qa/SKILL.md) | Review the integrated feature with two specialists and a proof verifier before completed handback. |
 | [educate](educate/SKILL.md) | Explain behavior and test rationale with clear diagrams and verified documentation. |
 
 ## Workflow
@@ -63,20 +64,32 @@ Private repository access uses the credentials already configured for Git. See t
 ```text
 plan ──> challenge ──> build
  │                      │
- └─ write-tests         ├─ write-tests: tests → logic → verification
-    (stubs only)        └─ qa: before commits and completed handback
+ └─ write-tests         ├─ write-tests: implement tests → RED → implement logic → GREEN
+    (stubs only)        ├─ code-quality + coordinator review → task commits (/auto)
+                        └─ qa: integrated feature before completed handback
 
 educate: whenever an explanation or clarification is needed
 ```
 
 - **The code is the contract.** Declarations, schemas, comments, and behavioral test expectations
-  define module behavior. Planning drafts remain proposals until approved.
+  define module behavior. Planning happens in the actual source/test files, not parallel draft
+  files; new files are created only when the feature needs them. Drafts remain proposals until approved.
 - **Approval belongs to the user.** Implementation cannot silently change the approved contract.
   Unresolved blocking challenge findings prevent feature implementation.
 - **The local spec is not a second contract.** `spec-<feature-name>.md` records the goal, significant
   decision rationale, approvals, and baseline references. It stays uncommitted.
-- **Build auto defaults to off.** When enabled, commits require scoped verification, QA clearance,
-  and coordinator review. Planning separately creates a contract baseline after explicit approval.
+- **Build uses a flat task queue.** Track outcomes, ownership, dependencies, checks, progress, and
+  commits in local, uncommitted `tasks-<feature-name>.md`. Run independent ready tasks in parallel
+  without recursive delegation.
+- **Red before production code.** Implement and run tests first; record meaningful failing assertions
+  before writing the missing behavior, then rerun to green. The coordinator checks ordered evidence.
+  Tests that already pass against unchanged existing behavior are recorded as such, not forced red.
+- **Build auto defaults to off.** `/auto` commits each ready task after scoped verification,
+  `code-quality`, and coordinator review, without waiting for the whole feature. Full QA gates
+  completed handback; intermediate full-QA gates are opt-in. Planning separately creates a contract
+  baseline after explicit approval.
+- **Code quality is shared, not another agent layer.** Build and QA use the same `code-quality`
+  criteria. Reviews stay at task/feature boundaries; fixes get targeted checks, not recursive gates.
 - **QA findings need proof.** Unverified suspicions are not confirmed defects; material verification
   gaps prevent clearance.
 - **Secrets are not implicitly available.** QA requires explicit scoped permission before reading
@@ -90,12 +103,21 @@ Its simplification guidance does not override the contracts or approval and veri
 These files provide portable instructions, not an execution engine. Installation does not add
 missing tools to an agent harness.
 
-- `plan`, `write-tests`, and `educate` need appropriate file access. `educate` also needs access to
+- `plan`, `write-tests`, `code-quality`, and `educate` need appropriate file access. `educate` also needs access to
   authoritative documentation to verify externally defined technical claims.
-- `build` needs delegation to a user-selected or suitable lower-cost implementation model.
-- `challenge` needs two independent fresh-context reviewers, then a third fresh-context reconciler.
-- `qa` needs two fresh-context specialists and a separate fresh-context verifier, using models more
-  capable than the implementer. Model names in the instructions are examples, not universal IDs.
+- All workflow coordinators use verified high-capability models.
+- `build` needs delegation to a suitable lower-cost worker, with escalation for tasks beyond its ability.
+- `challenge` needs two independent fresh-context reviewers, then a third fresh-context reconciler,
+  all on high-capability models.
+- `qa` needs two fresh-context specialists and a separate fresh-context verifier, all on high-capability
+  models—not merely models stronger than a budget worker.
+
+The [shared model-selection policy](use-skills/SKILL.md#shared-model-selection-policy) requires a
+current catalog/provider preflight, latest stable available generations within approved families,
+explicit resolved model IDs, launch verification, and visible selection reasons. User version pins
+are honored when eligible; uncertain classification or unavailable required models blocks delegation
+rather than causing silent downgrade. Astra and Fable are family examples, not hardcoded versions
+or universal provider IDs.
 
 If the required delegation or models are unavailable, the relevant skill reports a blocker rather
 than pretending an in-session self-review is equivalent. Availability depends on the user's harness
@@ -109,7 +131,7 @@ immediately. In Pi, use `/reload`.
 To update only the skills from this repository installed globally:
 
 ```bash
-npx skills update --global use-skills plan challenge build write-tests qa educate
+npx skills update --global use-skills plan challenge build write-tests code-quality qa educate
 ```
 
 For project installations, use `--project` instead of `--global`. Review local customizations before

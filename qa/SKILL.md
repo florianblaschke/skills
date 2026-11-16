@@ -7,7 +7,8 @@ description: Validate implementation correctness, security, quality, and perform
 
 ## When to Use
 
-- During `build`, before every commit.
+- During `build`, for the integrated feature before completed handback, not every task commit.
+- At an intermediate milestone or commit when the user explicitly requests full QA.
 - During `build`, before handing completed work back to the user, including when auto is off.
 - The caller requests quality and security validation of a specific implementation scope.
 
@@ -29,7 +30,8 @@ The current agent coordinates exactly three separate, fresh-context agents:
 3. **Verifier**, launched after both specialists finish to evaluate their claims independently.
 
 Only the coordinator launches agents. Specialists and the verifier must not delegate or recursively
-invoke this skill. All three use available models more capable than the implementation model.
+invoke this skill. The coordinator and all three agents must use verified high-capability models,
+not merely models ranked above a lower-cost implementer.
 
 ## Workflow
 
@@ -56,14 +58,17 @@ Fix scope, exact revision, approved contract, and reviewer models
              resolves blockers      coordinator applies build gates
                      |
                      v
-              Run QA again
+       Return to coordinator's task queue;
+       request affected-scope review after fixes
 ```
 
 ## 1. Fix the Review Scope
 
-By default, review the implemented scope awaiting commit or user handback: changed production code,
-tests, schemas, and configuration belonging to the assignment. Use another scope only when the
-caller explicitly specifies it. Record the scope and required verification before launching agents.
+By default, review the combined implemented feature awaiting user handback: changed production code,
+tests, schemas, configuration, and relevant cross-module interactions. Ordinary build task commits
+use scoped checks and coordinator review with `code-quality`, not this three-agent process. Use
+another scope only when the caller explicitly specifies it. Record the scope and required
+verification before launching agents.
 
 Identify the baseline and exact diff or file snapshot, including uncommitted changes. All three
 agents must inspect the same revision and have access to relevant local approval records that a
@@ -75,9 +80,10 @@ not expand into an unrelated repository-wide audit. Report an issue outside sele
 when the selected implementation introduces, exposes, or depends on it. Distinguish pre-existing
 defects from regressions.
 
-A narrow scope does not clear unreviewed changes for a larger commit. The coordinator must ensure
-all changes and relevant cross-module interactions are covered before committing or declaring
-completion. Separate module passes alone do not establish that the combined implementation works.
+A narrow QA scope does not clear unreviewed changes for a larger explicitly QA-gated commit or
+completed handback. The coordinator must ensure all changes and relevant cross-module interactions
+are covered for that gate. Separate module passes alone do not establish that the combined
+implementation works.
 
 ## 2. Launch Two Specialists, Then One Verifier
 
@@ -87,10 +93,13 @@ see each other's findings. The verifier starts fresh but deliberately receives b
 reports as evidence to investigate, not conclusions to accept.
 The coordinator may retain its existing context but cannot substitute its own review for these agents.
 
-Use user-selected QA models when they meet the capability requirement. Otherwise choose known
-available, more capable models, such as Fable or Astra if configured. These are examples, not assumed
-provider IDs. Do not invent identifiers or infer capability from a name alone. Ask the user when
-availability or suitability is unclear.
+Read and enforce the [shared model-selection policy](../use-skills/SKILL.md#shared-model-selection-policy).
+Use the latest stable available generation within an approved high-capability family, such as
+verified Fable or Astra when configured, unless the user explicitly pins an eligible version.
+Complete the catalog/provider preflight, announce resolved IDs and selection reasons, and verify
+actual launch metadata. Do not infer capability from a name, compare unrelated version numbers,
+or silently fall back to an older/default or budget-worker model. Ask when eligibility or freshness
+cannot be established.
 
 If any required agent cannot be launched, mark QA **incomplete**. Do not silently substitute the
 implementation model or an in-session review.
@@ -167,45 +176,11 @@ review. A missing security control is a finding only with a relevant threat and 
 
 ### Specialist B: Quality, Duplication, and Performance
 
-Check whether the implementation is understandable, proportionate, and focused on its assignment.
-Inspect tests for meaningful outcomes, direct unit-test calls, descriptive names, one behavior per
-test, and prepare/execute/assert structure as required by `write-tests`. Look for hidden failures:
-weakened assertions, skipped tests, leftover placeholders, and suppressed diagnostics.
-
-Apply the implementation-style rules in `build` to the selected scope:
-
-- Functions should have coherent responsibilities and directly testable decision logic. Identify
-  concrete mixed responsibilities or tangled branches rather than imposing a function-length limit
-  or demanding wrappers for trivial expressions.
-- Prefer guard clauses and early returns over avoidable nesting and `else` after a returning branch.
-  A finding must show the confusing control flow and a focused, behavior-preserving simplification;
-  an `else` or `switch` is not inherently a defect. Preserve cleanup and transaction semantics.
-- Shared domain values and rules that must change together should have one owning definition.
-  Cite the repeated locations and show why they represent the same concept. Check that callers reuse
-  the existing constant, enum, configuration, or predicate instead of copying it.
-- Distinguish a repeated value from a repeated condition: a shared retry limit belongs in one domain
-  constant, while retry eligibility belongs in one predicate reused by the worker and retry endpoint.
-  Check both callers for divergent copies of the policy. Do not recommend centralizing unrelated
-  matching literals, caching mutable conditions, or confusing an eligibility check with atomic retry
-  reservation.
-
-Pay particular attention to:
-
-- Duplicated business rules, validation, transformations, queries, or state-transition logic that
-  can drift or make changes inconsistent. Cite both locations and the concrete maintenance risk.
-- Repeated parsing or validation of already established internal values.
-- Redundant reads, N+1 calls, over-fetching, discarded results, avoidable allocations, and unbounded work.
-- Blocking operations, missing bounds, and inefficient algorithms on realistic input sizes.
-- Unnecessary abstractions, dependencies, and unrelated changes that complicate the implementation.
-
-Similar syntax alone does not prove harmful duplication. Do not demand an abstraction for a few
-coincidental lines. Distinguish database invariants from redundant application validation.
-
-Performance findings need measured evidence or a demonstrable work-amplification trace, such as one
-query per item. A pattern alone is not a defect: connect the demonstrated cost to realistic workloads,
-an explicit performance requirement, or clearly avoidable repeated work. State input-size assumptions
-and distinguish necessary operations from redundant ones. Do not claim latency, throughput, or memory
-numbers without measurement, and do not call code slow merely because another expression looks shorter.
+Read `code-quality` and apply it in read-only review mode to the selected scope. It is the shared
+source of criteria for coherent responsibilities, control flow, shared values and rules, meaningful
+tests, duplication, proportionality, and evidenced performance problems. Include its `write-tests`
+conventions when inspecting tests. Do not invoke `build` to obtain these criteria or launch another
+reviewer to apply them. Return candidate findings to this QA run's verifier.
 
 Both specialists may flag an obvious issue outside their focus; the verifier deduplicates it.
 No finding quota: empty reports are better than invented objections.
@@ -272,7 +247,8 @@ not invalidate required behavior or rules. Taste and unverified suspicions are n
 
 The verifier's consolidated report includes:
 
-- Agent roles and models, selected scope, and exact revision or diff fingerprint.
+- Agent roles, actual model IDs (including the coordinator), model-selection reasons, selected
+  scope, and exact revision or diff fingerprint.
 - Checks performed, results, and material verification gaps.
 - Verified findings with proof, blockers first.
 - A concise disposition of rejected and unresolved candidates, separate from findings.
@@ -293,24 +269,35 @@ reports when reviewing a later revision; identify which candidate each report ac
 Only a **pass** for the exact proposed changes clears QA. The coordinator must not silently discard
 findings or override the verifier. Return material counterevidence to the verifier for reconsideration.
 
-Build fixes blocking findings, then runs QA again with two fresh specialists and a fresh verifier.
+Return blocking findings to the build coordinator's existing task queue; do not invoke `build` or
+start repair agents from within QA. After fixes, the coordinator requests one follow-up review with
+two fresh specialists and a fresh verifier covering the fix diff, affected guarantees, and relevant
+interactions. Retain prior evidence for unchanged scope; do not restart the entire feature review
+or create a gate per helper, test, finding, or commit. Widen scope only for a concrete affected
+interaction and explain why. Non-blocking findings do not require another cycle for clearance.
+If the same blocker persists or required evidence remains unavailable, return changes-required or
+incomplete with the blocker; do not keep launching identical reviews without new code or evidence.
 If a fix requires a contract amendment, stop for explicit user approval through `build`; QA cannot
 grant that approval. Agents must not implement their suggested fixes during QA.
 
 Changes after QA invalidate clearance for affected scope and interactions. Re-review the final
-candidate before committing or claiming completed handback. Reuse a pass only when reviewed content
-and relevant dependencies are unchanged; reference it rather than claiming another review occurred.
+candidate before an explicitly QA-gated commit or completed handback. Reuse a pass only when
+reviewed content and relevant dependencies are unchanged; reference it rather than claiming another
+review occurred.
 
 Failed or incomplete QA does not prevent honest communication: return a status report or unfinished
-work with its blockers, but do not describe it as completed or QA-cleared, or commit it under the
-normal build gate.
+work with its blockers, but do not describe it as completed or QA-cleared. Build may still commit
+independently verified tasks through its task-level gate; an explicit intermediate full-QA commit
+gate remains binding.
 
 The coordinator's own pre-commit contract review remains mandatory. QA supplements that review; it
 does not authorize commits, contract changes, or pushes.
 
 ## Completion Check
 
-- [ ] Two specialists and a separate verifier used fresh contexts and suitable more capable models.
+- [ ] Model preflight verified a high-capability coordinator and two fresh-context specialists plus
+      a separate fresh-context verifier on eligible current/pinned high-capability models; resolved
+      IDs were announced and actual launch IDs checked.
 - [ ] All three reviewed the same identifiable scope and candidate revision.
 - [ ] Correctness, security, quality, duplication, performance, and test quality were assessed.
 - [ ] Every final finding has independently verified proof, consequence, location, and solution.
@@ -321,4 +308,6 @@ does not authorize commits, contract changes, or pushes.
 - [ ] Any use of `.env` files or their values had explicit scoped user approval; reports contain no
       secrets or personal data.
 - [ ] No project edits, fixes, delegation by reviewers, infrastructure changes, or commits occurred.
-- [ ] Only unchanged work with a pass proceeds through the build commit or completion gate.
+- [ ] Full QA gates completed handback and explicitly requested intermediate gates, not every task
+      commit; follow-up review covers affected scope without recursive build or helper-level gates.
+- [ ] Only unchanged work with a pass is described as QA-cleared.

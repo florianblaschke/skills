@@ -223,14 +223,20 @@ Hand the stubs back to `plan` for user review; do not automatically switch to bu
 
 ### Build Mode
 
-During `build`, write the tests first, then run the assigned module's relevant tests before handing
-back to the implementation step. A failing test must reach a meaningful assertion about missing or
-incorrect behavior; an import error, syntax error, or leftover placeholder failure does not prove
-that the behavior is tested.
+During `build`, implement and save the assigned task's executable tests before writing production
+behavior, then run them against the still-unimplemented or faulty behavior. Tests and production
+logic must not be written in the same initial patch. Record the exact red command, failing test
+names, and observed versus expected result; report this checkpoint to the coordinator before
+proceeding to production implementation. A failing test must reach a meaningful assertion about
+missing or incorrect behavior; an import error, syntax error, or leftover placeholder failure does
+not prove that the behavior is tested. A first green run after writing both tests and logic does
+not establish test-first order.
 
 If existing stubs prevent compilation or execution, report the blocker and the missing test evidence.
 Do not claim a completed red test run, change the contract, or implement production logic under this
 skill. The coordinator must resolve setup or declaration blockers before claiming test-first evidence.
+Contract-preserving declaration scaffolding must leave the target behavior unimplemented; if a
+meaningful red run still cannot execute, affected implementation remains blocked.
 
 When testing behavior already implemented, tests may pass immediately. Do not break working code to
 manufacture a failure. Report what the tests establish and whether they passed against existing logic.
@@ -249,8 +255,10 @@ results, and limitations. The build workflow remains **tests first, logic second
 - [ ] Unit tests are preferred; infrastructure tests are restricted to behavior needing real boundaries.
 - [ ] Planning mode: only stubs were written, with concrete comments and explicit placeholder failures;
       no fixture implementations, target invocations, or real assertions were added.
-- [ ] Build mode: placeholder failures were replaced with meaningful assertions and scoped tests ran
-      where possible before production implementation.
+- [ ] Build mode: executable tests ran to meaningful red and the checkpoint was reported before
+      production behavior was written; blocked execution stopped affected implementation.
+- [ ] Immediately green tests covered identified, unchanged existing behavior; final green results
+      alone were not presented as evidence of test-first execution.
 - [ ] Actual results and blockers were reported honestly; placeholder failures were not claimed as
       meaningful red-test evidence.
 - [ ] No production logic, unapproved contract changes, weakened tests, or new infrastructure slipped in.

@@ -16,7 +16,9 @@ those choices with the user before implementing the affected behavior.
 
 ## Purpose
 
-Implement the agreed contract, not a convenient approximation of it.
+Implement the agreed contract, not a convenient approximation of it. Use a flat queue of bounded,
+independently verifiable tasks, not recursive build/review cycles. With `/auto` enabled, finish,
+review, and commit each ready task before waiting for the whole feature to be complete.
 
 The current agent is the **coordinator**: it maintains the overview, assigns bounded implementation
 work, reviews results, and manages user decisions. A delegated **implementer** writes and verifies
@@ -34,38 +36,25 @@ explicit user approval.
 ## Workflow
 
 ```text
-Identify contract baseline, approved amendments, model, and auto setting
+Establish baseline, approved amendments, model, and auto setting
                               |
-                              v
-                  Delegate a bounded implementation slice
+                 Define flat tasks and commit boundaries
                               |
-                 Contract change needed?
-                    /                 \
-                 yes                   no
-                  |                     |
-                  v                     v
-         Stop affected work      Implement and verify
-         Explain to user                |
-                  |                     v
-         Explicit approval?      Compare against contract
-           /          \           and approved amendments
-          no          yes               |
-          |            |          Conforming?
-          v            v          /          \
-      Keep contract  Record      no          yes
-      unchanged      amendment    |            |
-                     in code      v            v
-                     and spec   Rework     Auto on?
-                         |                 /      \
-                         v               yes      no
-                    Reassign              |        |
-                                          v        v
-                                  Coordinator review
-                                          |        |
-                                        Commit   Leave uncommitted
-                                             \    /
-                                              v  v
-                                      Review next slice or finish
+                 Assign independent ready tasks in parallel
+                              |
+                 Implement tests -> run RED -> implement behavior -> run GREEN
+                              |
+                 Coordinator contract + code-quality review
+                              |
+                 Auto on: commit each ready task now
+                 Auto off: mark verified/uncommitted
+                              |
+                 Release dependent tasks; repeat queue
+                              |
+                 Combined feature checks + full QA -> handback
+
+Contract departure at any point: stop affected work -> explicit user approval
+-> record exact amendment -> resume affected tasks. No recursive build calls.
 ```
 
 ## 1. Establish the Implementation Baseline
@@ -90,16 +79,26 @@ before affected implementation begins. Do not fabricate a baseline or infer appr
 
 ### Model and Auto Setting
 
-Use the implementation model explicitly selected by the user. Otherwise prefer an available
-lower-cost model capable of the task. Do not invent model identifiers or assume pricing. If no
-suitable lower-cost option can be identified, ask the user which available model to use.
+Read and enforce the [shared model-selection policy](../use-skills/SKILL.md#shared-model-selection-policy).
+The coordinator must use the high-capability tier. For each worker, use an eligible user-selected
+model or the latest stable available generation within a suitable lower-cost family. Assess the
+actual task's complexity, tools, context needs, and known model limitations; cheap alone is not
+sufficient. Complete the catalog/provider preflight, announce resolved IDs and selection reasons,
+and verify actual launch metadata. Do not silently use an older harness default or infer cost
+or capability from a name. Ask when suitability or availability cannot be established.
+
+Record the controller and per-task worker model IDs in `tasks-<feature-name>.md`. When a worker
+reports capability limits or repeatedly fails, reassess and escalate to a verified high-capability
+worker rather than recursively delegating or repeating the same failing approach. Announce and
+record the change; preserve ownership, test-first, and contract gates.
 
 Use the user's harness and its documented delegation mechanism. If delegation is unavailable,
 report the blocker rather than silently doing the implementation in the coordinator's context.
 
 **Auto controls committing, not contract authority.**
 
-- **Auto on:** the implementer may create verified, contract-conforming implementation commits.
+- **Auto on** (including `/auto`): the implementer creates a verified, contract-conforming commit
+  for each completed task after coordinator authorization; do not batch ready tasks until feature completion.
 - **Auto off:** leave all implementation work uncommitted, including at completion.
 - If the user has not specified auto, default to **off** and state that choice.
 
@@ -119,6 +118,34 @@ against their agreed interfaces. Each worker is an implementer under the same co
 selection rules. Shared files and cross-module integration need an explicit owner; do not assign
 overlapping writes. Split a large module into coherent slices when necessary.
 
+Before launching workers, create `tasks-<feature-name>.md` beside the local planning anchor and show
+the user its path. Reuse it on resume instead of creating another tracker; preserve unrelated files
+if the default path is occupied. The coordinator owns and updates this local, uncommitted progress
+file. It tracks work, not a second contract: reference source/test symbols rather than copying their
+behavioral definitions.
+
+| Task / observable outcome | Owner / owned files | Dependencies | Tests and verification | Commit boundary | Status / commit |
+| --- | --- | --- | --- | --- | --- |
+
+Below the table, keep short per-task evidence notes: red command and actual failure, green command
+and result, blockers, and commit hash when applicable. Update the file at assignment, red/green
+checkpoints, review, and commit or blocker transitions. Workers report evidence to the coordinator;
+they do not concurrently edit this shared tracker. On resume, reconcile it with the working tree,
+actual commits, and check results before continuing; a recorded status is not proof.
+
+Populate it with the actual tasks, not just this template. A task delivers one meaningful contract
+behavior or a cohesive module with its tests, not each helper, branch, or review finding. A small
+feature may be one task. A large feature must not be one unbounded assignment. If a task cannot be
+verified or committed independently, combine it with its minimum prerequisite or split it differently
+before assigning it; do not discover its boundaries through recursive delegation.
+
+Assign separate workers to independent ready tasks and run them concurrently when the harness and
+file ownership allow it. State concrete dependency, shared-file, or harness reasons for serial work.
+Do not merely mention parallelism and then give one worker the whole feature. The coordinator owns
+the queue and updates statuses: ready, running, review, committed (or verified/uncommitted with auto
+off), blocked. Workers return blocked work or findings to this queue; they do not invoke `build`,
+launch reviewers, or create nested task trees. Reassign fixes to the owning task, not a new build.
+
 Before each assignment, define the owned files, module behavior, relevant tests, and scoped
 verification commands. A worker checks its assigned module and files, not unrelated unfinished
 modules. The coordinator owns cross-module integration verification before declaring the feature
@@ -131,8 +158,11 @@ Give each implementer:
 - The exact baseline commit and approved amendments, including their user-confirmed rationale.
 - The auto setting and all contract-change and commit rules in this skill.
 - Existing code and test conventions, verification commands, and known planning-stage blockers.
-- A requirement to report changed files, test-first evidence, verification results, contract
-  concerns, and a proposed commit diff when auto is on.
+- A hard prohibition on writing production behavior before implementing and running its tests to
+  a meaningful red result, as specified in section 4. Tests and implementation must be separate
+  edit/run steps, not a combined patch followed by a first green run.
+- A requirement to report changed files, exact red/green commands and observed results in order,
+  verification results, contract concerns, and a proposed commit diff when auto is on.
 - A prohibition on committing until the coordinator has reviewed and authorized the exact diff.
 
 The implementer may inspect supporting project code as needed. Do not ask it to implement unrelated
@@ -141,9 +171,12 @@ the same files. Serialize commits in a shared checkout so one worker cannot acci
 another worker's changes. Use isolated workspaces when appropriate, ensuring every worker can read
 the local planning anchor and approved amendments.
 
-The coordinator reviews each returned slice for scope, behavior, verification evidence, and contract
-conformance before assigning dependent work. An implementer's statement that it complied is not a
-substitute for inspecting its changes.
+The coordinator reviews each returned task for scope, behavior, verification evidence, contract
+conformance, and `code-quality` criteria. An implementer's statement that it complied is not a
+substitute for inspecting its changes. With auto on, authorize and serialize the ready task's commit
+as soon as these checks pass, even while unrelated tasks remain unfinished. With auto off, mark it
+verified/uncommitted. Release dependent tasks once their prerequisite is reviewed and available.
+Do not wait for feature-wide QA to commit an otherwise verified task.
 
 ## 3. Treat Contract Changes as a Hard Gate
 
@@ -192,15 +225,38 @@ permission for further departures.
 
 ## 4. Implement and Verify
 
-For each assigned module or slice, follow this order:
+### Mandatory Red → Green Gate
 
-1. **Write tests first.** Use `write-tests` to turn the contract's behavioral skeletons into real tests.
-   Preserve their expected outcomes and confirm they fail because the behavior is not implemented,
-   not merely because of broken test setup or syntax. If `write-tests` is unavailable, report that
-   dependency rather than inventing its workflow or claiming it was used.
-2. **Implement the logic.** Write only the behavior needed to satisfy the approved module contract.
-3. **Verify.** Run the assigned module's relevant tests and scoped syntax, type, schema, lint, and
-   build checks. Fix the implementation and repeat verification until those required checks pass.
+For each assigned task, perform these steps in order, including for fixes returned by review:
+
+1. **Implement the tests, not the production behavior.** Use `write-tests` to replace the assigned
+   contract skeletons with executable setup, direct target calls, and meaningful assertions. Preserve
+   approved outcomes. Save these test changes before editing production behavior. If `write-tests`
+   is unavailable, report the dependency blocker rather than inventing its workflow.
+2. **Run and record RED.** Run the new or changed tests against the still-unimplemented or faulty
+   behavior. Inspect the actual failure: an assertion must demonstrate the missing behavior.
+   Record the command, failing test names, and observed versus expected result, and report this
+   checkpoint to the coordinator for the task tracker **before writing production behavior**.
+   A planned test, placeholder throw, import/type/syntax error, or test runner that never executed
+   the assertion does not pass this gate. Resolve test setup or declaration blockers first; minimal
+   contract-preserving declarations may enable execution, but must not implement the target behavior.
+   If meaningful red cannot be obtained, stop affected implementation and report the blocker.
+3. **Implement the production behavior only after RED.** Write the minimum logic needed to satisfy
+   those tests and the approved contract. Do not write tests and production logic in the same initial
+   patch, implement first and backfill tests, or claim a first green run proves test-first order.
+4. **Run and record GREEN.** Rerun the same tests and required task regression checks. Record the
+   commands and actual passing results. Run applicable scoped syntax, type, schema, lint, and build
+   checks. Fix implementation without weakening expectations; rerun affected checks after cleanup.
+
+The coordinator must inspect red/green evidence and execution order before marking a task verified
+or authorizing its commit. A final passing suite alone is insufficient. Missing evidence blocks the
+task's review gate; do not invent a historical red run or label tests written afterward test-first.
+This is an execution checkpoint within the task, not a new reviewer or recursive agent gate.
+
+**Already-implemented behavior:** new tests may pass immediately against unchanged existing logic.
+Record that result and the existing implementation that satisfies the contract; do not break working
+code to manufacture red. This exception permits coverage of existing behavior, not writing new
+behavior before its tests. Any remaining missing behavior must still pass the red gate.
 
 Do not delete, skip, or relax agreed expectations to obtain a passing result. Expand tests for
 relevant edge cases without inventing product requirements. Existing working behavior need not be
@@ -220,50 +276,9 @@ contract problem, use the approval gate above rather than silently changing the 
 
 ### Implementation Style
 
-- **Small, testable units:** keep each function focused on one coherent responsibility. Separate
-  substantial decision logic from I/O or orchestration when that makes it directly testable.
-  Extract a named function when it removes repeated logic or makes a tangled responsibility clear;
-  do not create one-line wrappers or public APIs merely to split up code. No arbitrary line limit.
-- **Flat control flow:** prefer guard clauses and early returns for invalid inputs, missing data,
-  and completed cases, leaving the normal path easy to follow. Avoid nested `if/else` trees and
-  `else` blocks after branches that already return. Use `switch`/pattern matching for genuine
-  variants when clearer. Do not mechanically eliminate every `else` or change cleanup, transaction,
-  error-handling, or evaluation semantics just to flatten the code.
-- **One definition per shared domain value or rule:** centralize repeated status names, sentinel
-  values, defaults, limits, and other values that represent the same concept and must change together.
-  Use an existing domain enum, constant, or configuration owner where available. Keep genuinely
-  shared definitions at the narrowest common module boundary, not in a global constants dumping ground.
-- **Repeated condition versus repeated value:** a constant names a stable value; a predicate names a
-  rule. Centralize a shared retry limit as a constant and the conditions for retry eligibility as a
-  predicate, rather than copying a numeric limit and an `if/else` tree across callers. Do not extract
-  meaningless constants such as `EMPTY_STRING`, couple unrelated matching literals, or cache a
-  condition over mutable data as if it were a constant.
-
-For example, suppose a background worker and a manual retry endpoint must enforce the same contract:
-retry only failed deliveries with transient errors, with at most three completed attempts in total.
-
-```typescript
-// Owned by the delivery module; both callers import the same policy.
-export const MAX_DELIVERY_ATTEMPTS = 3;
-
-type Delivery = {
-  status: "pending" | "failed" | "sent";
-  attempts: number; // Completed attempts, including the first attempt.
-  failureKind: "transient" | "permanent" | null;
-};
-
-export function canRetryDelivery(delivery: Delivery): boolean {
-  if (delivery.status !== "failed") return false;
-  if (delivery.failureKind !== "transient") return false;
-  return delivery.attempts < MAX_DELIVERY_ATTEMPTS;
-}
-```
-
-The constant owns the shared limit; the predicate owns the shared decision. Guard clauses keep the
-rule flat, and direct unit tests can cover sent deliveries, permanent failures, and the attempt limit
-separately. Both callers reuse the predicate instead of maintaining competing copies of the policy.
-This checks eligibility only; it does not claim to atomically reserve a retry under concurrency.
-These fields and limits are illustrative, not permission to invent a retry policy for the project.
+Use `code-quality` in implementation mode for the shared rules on coherent units, control flow,
+shared domain rules, test quality, duplication, and performance. It is a checklist within this task,
+not a delegated or recursive gate.
 
 ### Mandatory Contract Conformance Check
 
@@ -276,10 +291,10 @@ Before **every commit**, including contract amendment commits, the implementer m
 4. Verify that behavioral tests still express the agreed expectations and have not been weakened.
 5. Rework any unauthorized difference and rerun affected checks before proceeding.
 6. Send the exact proposed diff, baseline/amendment references, conformance assessment, and scoped
-   verification evidence to the coordinator. The coordinator invokes `qa` on that candidate using
-   two independent specialists and a separate proof verifier on more capable models. Wait for a
-   QA pass and the coordinator's explicit
-   authorization before committing that exact diff.
+   verification evidence to the coordinator. The coordinator reviews that task using `code-quality`
+   and checks correctness, relevant security boundaries, and contract conformance. Wait for its
+   explicit authorization before committing that exact diff. Full `qa` is not a per-task prerequisite
+   unless the user explicitly requests it.
 
 The coordinator independently inspects the proposed changes and evidence before authorizing the
 commit. Its authorization confirms conformance; it cannot approve a contract change on the user's
@@ -292,24 +307,24 @@ baseline plus that exact approval; approval does not excuse other differences.
 With auto off, perform the same conformance check before handing work back, even though there is
 no commit. Contract enforcement is identical in both modes.
 
-### Mandatory QA Gate
+### Task Review and Feature QA
 
-Use `qa` before every commit and before completed user handback. The coordinator launches the QA
-specialists and verifier; implementation workers must not launch them themselves. Default QA scope is the implemented
-module or slice, including its tests and relevant dependencies. An explicit caller-selected scope
-must still cover all changes being cleared for commit or completion.
+Every task requires scoped tests, applicable checks, and coordinator review using `code-quality`
+and the contract conformance check above. Review at the task boundary, not after every function or
+file edit. Fix blocking findings within the owning task, rerun affected checks, and inspect the fix;
+do not launch a new build or three-agent QA cycle for each correction. Non-blocking cleanup does
+not hold a verified task's commit hostage.
 
-QA requires three fresh-context agents on available models more capable than the implementer:
-correctness/security and quality/performance specialists, followed by an independent proof verifier.
-Every reported finding must be independently proved; unverified suspicions are not findings.
-A failing or incomplete QA blocks the commit and completion claim. Fix findings and re-run QA on the
-final candidate; do not treat a report on older code as clearance. The coordinator's contract review
-remains required in addition to QA. Reuse a pass only when the reviewed content and relevant
-interactions are unchanged, as defined by `qa`.
+Use full `qa` for the combined implemented feature and cross-module interactions before completed
+user handback. The coordinator alone launches its two specialists and independent proof verifier.
+An explicit user request may also require full QA for selected intermediate milestones or commits;
+otherwise task commits use the scoped coordinator gate, not full QA.
 
-At final handback, ensure the combined implemented scope and cross-module interactions are covered,
-not merely each module in isolation. Unfinished work may be returned with an honest blocker report,
-but not described as QA-cleared or complete.
+A failing or incomplete feature QA blocks completion, not unrelated task commits that pass their
+own gates. Freeze affected/dependent work on a blocker; independent tasks may continue. Put fixes
+back into the flat queue, review and commit them normally, then re-review the affected QA scope.
+Do not describe an earlier task commit as QA-cleared unless it actually received that review.
+Unfinished work may be returned with an honest blocker report, never as complete or QA-cleared.
 
 ## 5. Commit or Hand Back
 
@@ -331,7 +346,7 @@ Do not reference `.md` documents, agent assignments, or numbered plan steps in c
 Do not add claims of verification that did not occur.
 
 Inspect the staged diff before committing. Include only the intended slice, never local planning
-or challenge reports. Preserve unrelated staged work; if a clean isolated commit cannot be made
+anchors, task trackers, or challenge reports. Preserve unrelated staged work; if a clean isolated commit cannot be made
 safely, stop and ask rather than unstaging, rearranging, or including unrelated changes. Do not use
 blanket staging commands or bypass checks.
 
@@ -362,16 +377,26 @@ or required checks have failed or could not run; state the limitation clearly.
 
 ## Completion Check
 
-- [ ] Implementation was delegated to the user-selected or identified lower-cost model.
+- [ ] Model preflight verified the high-capability coordinator and suitable current/pinned workers;
+      resolved IDs were announced, actual launch IDs checked, and any escalations recorded.
 - [ ] The baseline contract and exact, explicitly approved amendments governed every module or slice.
 - [ ] No feature implementation proceeded while applicable challenge blockers remained unresolved.
+- [ ] `tasks-<feature-name>.md` tracked the flat task table, progress, red/green evidence, blockers,
+      and commits; it stayed local and uncommitted and was reconciled on resume.
+- [ ] Independent ready tasks ran in parallel or a concrete constraint was stated.
 - [ ] Module ownership and scoped verification were defined before work; integration was verified.
-- [ ] Workers wrote tests first, implemented logic second, and verified third.
+- [ ] Workers implemented and ran tests to meaningful red before writing production behavior,
+      then reran them to green; the coordinator inspected ordered evidence, not just a final pass.
+- [ ] Any immediately green tests covered identified, unchanged existing behavior, not code written
+      before its tests; missing red evidence or blocked execution was not silently waived.
 - [ ] Every contract change received explicit user confirmation before affected implementation.
 - [ ] Approved changes and their rationale were recorded in the local spec without committing it.
 - [ ] Behavioral tests preserve the contract and relevant verification results are reported honestly.
 - [ ] Every auto commit passed the baseline-and-amendment conformance check and coordinator review
       before being created.
-- [ ] Every commit and completed handback had a QA pass for the exact changes and relevant scope.
+- [ ] Each completed task passed scoped checks, `code-quality`, and coordinator review; with auto
+      on, ready tasks were committed without waiting for unrelated feature work or final QA.
+- [ ] Completed handback had full QA clearance covering the combined feature and its interactions;
+      any explicitly requested intermediate QA gates also passed.
 - [ ] Auto-off work remains uncommitted; unrelated work and staging were preserved.
 - [ ] The coordinator inspected the implementation results rather than trusting only a summary.

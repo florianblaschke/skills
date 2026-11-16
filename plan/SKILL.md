@@ -24,7 +24,12 @@ single source of truth for what each module promises: responsibilities, data def
 declarations or stubs, and behavioral test skeletons. This includes internal module interfaces, not
 only externally public APIs.
 
-`spec-<feature-name>.md` is a local planning anchor: it records the goal, why significant choices were made,
+Plan directly in the source and test files that will contain the implementation. Do not create
+parallel proposal files, draft-only interfaces, or a planning directory. New source or test files
+are appropriate only when the feature itself needs them; choose their final paths from the project's
+existing layout without asking the user where to put the plan.
+
+`spec-<feature-name>.md` is a lightweight local planning anchor, not the planning workspace: it records the goal, why significant choices were made,
 approval status, verification notes, and the contract commit hash. Code records **what the system
 promises**; the spec records **why the agreed direction was chosen**. Do not copy signatures, field
 lists, or behavioral rules into the spec. Never commit this planning anchor.
@@ -141,10 +146,13 @@ is useful first, show actual typed declarations, not only a prose flow; save the
 the next contract-design turn. A terminal sketch is a stepping stone, not a permanent substitute for
 filesystem changes. Respect an explicit user request to discuss without editing.
 
-Do not wait for every design decision to be settled. Preserve working code: use separate proposed
-contract files when modifying existing interfaces would overwrite implementation or imply an approved
-breaking change. Mark draft declarations/comments as proposed. Unknown outcomes may be questions on
-the relevant stubs; they are not approved defaults and must be resolved before final approval.
+Do not wait for every design decision to be settled. Preserve working code: place proposed contract
+comments next to the existing declarations or implementation, and proposed test skeletons in the
+actual test files. Describe a proposed signature change in an adjacent comment when changing the
+live declaration would break working callers; do not duplicate the interface in a separate file.
+Mark drafts as proposed so they cannot be mistaken for approved behavior. Once approved, update the
+actual declaration where safe, or retain the explicit approved change beside it for implementation.
+Unknown outcomes may be questions on the relevant stubs; resolve them before final approval.
 
 If even a provisional interface cannot be drafted safely, ask the specific blocking question and
 explain what prevents the draft. A missing choice for one operation must not hold up drafting the
@@ -225,8 +233,9 @@ resolved:
 - Behavioral test skeletons with concrete expected outcomes. Use `write-tests` in planning mode:
   write stubs only, not executable fixtures, target calls, or real assertions.
 
-Use existing artifact locations where practical. Express module responsibilities, dependencies, and
-contract semantics in those code files, using declarations and adjacent comments as needed. Do not
+Use the actual implementation and test locations, including existing files when extending existing
+behavior. Express module responsibilities, dependencies, and contract semantics in those code files,
+using declarations and adjacent comments as needed. Do not
 reproduce them in the spec. Do not add a framework or dependencies merely to express a plan; if the
 project has no chosen stack, agree on the representation with the user first.
 
@@ -348,6 +357,8 @@ Before requesting final approval, verify:
       unspecified.
 - [ ] Available syntax, schema, or type checks have been run where applicable; failures and
       unimplemented test status are recorded honestly.
+- [ ] Contracts and test skeletons are in their final source/test locations, not parallel planning
+      files; existing implementations and user edits are preserved.
 - [ ] No business logic, deployment, or unrelated refactoring has slipped into the plan.
 
 Show the user the exact files being approved and identify any checks that cannot yet pass because

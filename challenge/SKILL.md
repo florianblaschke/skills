@@ -72,6 +72,14 @@ commit alone is not a blocker if the review target is otherwise clear.
 Use the user's available agent harness, such as pi, Codex, Claude, or another supported runner.
 Use its documented agent or session mechanism; do not assume a particular CLI or invent flags.
 
+Read and enforce the [shared model-selection policy](../use-skills/SKILL.md#shared-model-selection-policy).
+The controller, both reviewers, and reconciler must use the high-capability tier. Select the latest
+stable available generation within an approved high-capability family (for example, verified Astra
+or Fable), unless the user explicitly pins an eligible version. A lower-cost worker model is not a
+challenge fallback. Complete the model preflight, announce resolved IDs and reasons, and verify
+actual launch metadata. If an eligible model cannot be established or launched, report an incomplete
+review and stop rather than silently downgrading.
+
 **Both reviewers must start in new, independent contexts.** Do not continue the planning session,
 fork its conversation, or pass its transcript to either reviewer. The design author's existing
 context is not an independent review. The current agent may coordinate, but must not substitute
@@ -213,7 +221,8 @@ restart the affected review process against one fixed target.
 Include:
 
 - The baseline commit, if any, and any reviewed uncommitted changes.
-- Each reviewer's focus and whether both reviews and the fresh-context reconciliation completed.
+- Each reviewer's focus, actual model IDs for the controller/reviewers/reconciler, selection reasons,
+  and whether both reviews and the fresh-context reconciliation completed.
 - The reconciler's disposition of the original claims, with counterevidence for rejected claims.
 - Validated claims, blockers first, with a proposed solution for each.
 - Any unresolved evidence limitations, separate from confirmed claims.
@@ -237,6 +246,8 @@ This skill does not authorize contract edits, implementation, or commits.
 
 ## Completion Check
 
+- [ ] Model preflight verified the high-capability controller, reviewers, and reconciler; resolved
+      IDs were announced, actual launch IDs checked, and no budget/default fallback was substituted.
 - [ ] Both reviewers started in independent fresh contexts and reviewed the same target.
 - [ ] A third fresh-context agent reconciled both reviews against that target; no agent delegated.
 - [ ] Feasibility/security and contract quality/coverage were both examined.
