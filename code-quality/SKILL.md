@@ -39,6 +39,14 @@ I/O or orchestration when that makes it directly testable. Extract a named funct
 repeated logic or clarifies a tangled responsibility, not to satisfy a line limit. Do not add
 one-line wrappers, public APIs, or abstractions merely to split code up.
 
+### Code as the Source of Truth
+
+Do not add function comments or docstrings, including JSDoc or TSDoc. They duplicate the code as a
+second source of truth that can drift and should not be needed to understand a function. Express
+intent through clear function and parameter names, types, and straightforward implementation
+instead. When reviewing selected changes, flag function comments and recommend removing them,
+clarifying the code itself where necessary. Do not expand this into unrelated comment cleanup.
+
 ### Clear Control Flow
 
 Prefer guard clauses and early returns for invalid inputs, missing data, and completed cases,
